@@ -2288,6 +2288,17 @@ static int decode_type1230(rtcm_t *rtcm)
     trace(2,"rtcm3 1230: not supported message\n");
     return 0;
 }
+/* decode type 4001: [non-standard] SBAS raw data ---------------------*/
+static int decode_sbas(rtcm_t *rtcm)
+{
+    trace(3,"decode_sbas: len=%3d\n",rtcm->len);
+    if (rtcm->len != sizeof(sbsmsg_t)) {
+        trace(2,"decode_sbas: invalid size\n");
+        return -1;
+    }
+    memcpy(&rtcm->sbasmsg, rtcm->buff+6, sizeof(sbsmsg_t));
+    return 3;
+}
 /* decode rtcm ver.3 message -------------------------------------------------*/
 extern int decode_rtcm3(rtcm_t *rtcm)
 {
@@ -2426,6 +2437,7 @@ extern int decode_rtcm3(rtcm_t *rtcm)
         case 2067: ret=decode_ssr7(rtcm,SYS_GAL); break; /* tentative */
         case 2068: ret=decode_ssr7(rtcm,SYS_QZS); break; /* tentative */
         case 2070: ret=decode_ssr7(rtcm,SYS_CMP); break; /* tentative */
+        case 4001: ret=decode_sbas(rtcm); break;
     }
     if (ret>=0) {
         type-=1000;

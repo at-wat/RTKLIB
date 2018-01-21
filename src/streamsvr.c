@@ -40,6 +40,11 @@ static int is_navmsg(int msg)
     return msg==1019||msg==1020||msg==1044||msg==1045||msg==1046||
            msg==1047||msg==63;
 }
+/* test sbas raw data message (non-standard) ---------------------------------*/
+static int is_sbsmsg(int msg)
+{
+    return msg==4001;
+}
 /* test station info message -------------------------------------------------*/
 static int is_stamsg(int msg)
 {
@@ -142,6 +147,13 @@ static void raw2rtcm(rtcm_t *out, const raw_t *raw, int ret)
         }
         out->ephsat=sat;
     }
+    else if (ret==3) {
+        sat=raw->ephsat;
+        switch (satsys(sat,&prn)) {
+            case SYS_SBS: out->sbasmsg = raw->sbsmsg; break;
+        }
+        out->ephsat = sat;
+    }
     else if (ret==9) {
         matcpy(out->nav.utc_gps,raw->nav.utc_gps,4,1);
         matcpy(out->nav.utc_glo,raw->nav.utc_glo,4,1);
@@ -236,6 +248,27 @@ static void write_nav(gtime_t time, stream_t *str, strconv_t *conv)
         }
         else continue;
         
+        /* write messages to stream */
+        strwrite(str,conv->out.buff,conv->out.nbyte);
+    }
+}
+/* write sbas data messages ---------------------------------------------------*/
+static void write_sbs(gtime_t time, stream_t *str, strconv_t *conv)
+{
+    int i;
+
+    for (i=0;i<conv->nmsg;i++) {
+        if (!is_sbsmsg(conv->msgs[i])||conv->tint[i]>0.0) continue;
+
+        /* generate messages */
+        if (conv->otype==STRFMT_RTCM2) {
+            if (!gen_rtcm2(&conv->out,conv->msgs[i],0)) continue;
+        }
+        else if (conv->otype==STRFMT_RTCM3) {
+            if (!gen_rtcm3(&conv->out,conv->msgs[i],0)) continue;
+        }
+        else continue;
+
         /* write messages to stream */
         strwrite(str,conv->out.buff,conv->out.nbyte);
     }
@@ -357,6 +390,7 @@ static void strconv(stream_t *str, strconv_t *conv, unsigned char *buff, int n)
         switch (ret) {
             case 1: write_obs(conv->out.time,str,conv); break;
             case 2: write_nav(conv->out.time,str,conv); break;
+            case 3: write_sbs(conv->out.time,str,conv); break;
         }
     }
     /* write cyclic nav data and station info messages to stream */

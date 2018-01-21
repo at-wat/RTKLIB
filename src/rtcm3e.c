@@ -2360,6 +2360,20 @@ static int encode_msm7(rtcm_t *rtcm, int sys, int sync)
     rtcm->nbit=i;
     return 1;
 }
+/* decode type 4001: [non-standard] SBAS raw data ---------------------*/
+static int encode_sbas(rtcm_t *rtcm, int sync)
+{
+    int i=24;
+    trace(3,"encode_sbas: len=%3d\n",rtcm->len);
+    setbitu(rtcm->buff,i,12,4001       ); i+=12; /* message no */
+    setbitu(rtcm->buff,i,12,rtcm->staid); i+=12; /* ref station id */
+
+    i=48;
+    memcpy(rtcm->buff+i/8, &rtcm->sbasmsg, sizeof(sbsmsg_t));
+    i+=sizeof(sbsmsg_t)*8;
+    rtcm->nbit=i;
+    return 1;
+}
 /* encode rtcm ver.3 message -------------------------------------------------*/
 extern int encode_rtcm3(rtcm_t *rtcm, int type, int sync)
 {
@@ -2471,6 +2485,7 @@ extern int encode_rtcm3(rtcm_t *rtcm, int type, int sync)
         case 2067: ret=encode_ssr7(rtcm,SYS_GAL,sync); break; /* tentative */
         case 2068: ret=encode_ssr7(rtcm,SYS_QZS,sync); break; /* tentative */
         case 2070: ret=encode_ssr7(rtcm,SYS_CMP,sync); break; /* tentative */
+        case 4001: ret=encode_sbas(rtcm,sync); break;
     }
     if (ret>0) {
         type-=1000;

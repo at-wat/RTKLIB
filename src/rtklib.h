@@ -986,6 +986,7 @@ typedef struct {        /* RTCM control struct type */
     unsigned int nmsg2[100]; /* message count of RTCM 2 (1-99:1-99,0:other) */
     unsigned int nmsg3[400]; /* message count of RTCM 3 (1-299:1001-1299,300-399:2000-2099,0:ohter) */
     char opt[256];      /* RTCM dependent options */
+    sbsmsg_t sbasmsg;   /* [non-standard] SBAS raw data */
 } rtcm_t;
 
 typedef struct {        /* rinex control struct type */
