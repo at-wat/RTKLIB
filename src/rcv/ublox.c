@@ -953,6 +953,7 @@ static int decode_snav(raw_t *raw, int sat, int off)
     }
     memcpy(raw->sbsmsg.msg,buff,29);
     raw->sbsmsg.msg[28]&=0xC0;
+    raw->ephsat=sat;
     return 3;
 }
 /* decode ubx-rxm-sfrbx: raw subframe data (ref [3]) -------------------------*/
