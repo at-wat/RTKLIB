@@ -59,6 +59,7 @@
 *           2016/09/27 1.24 support udp server and client
 *           2016/10/10 1.25 support ::P={4|8} option in path for STR_FILE
 *-----------------------------------------------------------------------------*/
+#define _GNU_SOURCE
 #include <ctype.h>
 #include "rtklib.h"
 #ifndef WIN32
@@ -72,6 +73,7 @@
 #endif
 #include <errno.h>
 #include <termios.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -1038,7 +1040,6 @@ static int send_nb(socket_t sock, unsigned char *buff, int n)
 /* generate tcp socket -------------------------------------------------------*/
 static int gentcp(tcp_t *tcp, int type, char *msg)
 {
-    struct hostent *hp;
 #ifdef SVR_REUSEADDR
     int opt=1;
 #endif
@@ -1077,7 +1078,14 @@ static int gentcp(tcp_t *tcp, int type, char *msg)
         listen(tcp->sock,5);
     }
     else { /* client socket */
-        if (!(hp=gethostbyname(tcp->saddr))) {
+        struct addrinfo hints;
+        struct addrinfo *res;
+
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_family = AF_INET;
+
+        if (getaddrinfo(tcp->saddr, NULL, &hints, &res)!=0) {
             sprintf(msg,"address error (%s)",tcp->saddr);
             tracet(1,"gentcp: gethostbyname error addr=%s err=%d\n",tcp->saddr,errsock());
             closesocket(tcp->sock);
@@ -1086,7 +1094,8 @@ static int gentcp(tcp_t *tcp, int type, char *msg)
             tcp->tdis=tickget();
             return 0;
         }
-        memcpy(&tcp->addr.sin_addr,hp->h_addr,hp->h_length);
+        tcp->addr.sin_addr = ((struct sockaddr_in*)res->ai_addr)->sin_addr;
+        freeaddrinfo(res);
     }
     tcp->state=1;
     tcp->tact=tickget();
@@ -2096,7 +2105,6 @@ static int statexntripc(ntripc_t *ntripc, char *msg)
 static udp_t *genudp(int type, int port, const char *saddr, char *msg)
 {
     udp_t *udp;
-    struct hostent *hp;
     int bs=buffsize,opt=1;
     
     tracet(3,"genudp: type=%d\n",type);
@@ -2134,19 +2142,27 @@ static udp_t *genudp(int type, int port, const char *saddr, char *msg)
         }
     }
     else { /* udp client */
+        struct addrinfo hints;
+        struct addrinfo *res;
+
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_family = AF_INET;
+
         if (!strcmp(saddr,"255.255.255.255")&&
             setsockopt(udp->sock,SOL_SOCKET,SO_BROADCAST,(const char *)&opt,
                        sizeof(opt))==-1) {
             tracet(2,"genudp: setsockopt error sock=%d err=%d\n",udp->sock,errsock());
             sprintf(msg,"sockopt error: broadcast");
         }
-        if (!(hp=gethostbyname(saddr))) {
+        if (getaddrinfo(udp->saddr, NULL, &hints, &res)!=0) {
             sprintf(msg,"address error (%s)",saddr);
             closesocket(udp->sock);
             free(udp);
             return NULL;
         }
-        memcpy(&udp->addr.sin_addr,hp->h_addr,hp->h_length);
+        udp->addr.sin_addr = ((struct sockaddr_in*)res->ai_addr)->sin_addr;
+        freeaddrinfo(res);
     }
     return udp;
 }
